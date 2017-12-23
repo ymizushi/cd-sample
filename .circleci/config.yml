@@ -1,0 +1,85 @@
+version: 2
+branches:
+  ignore:
+    - /wip/*
+
+jobs:
+  build:
+    docker:
+      - image: circleci/openjdk:8-jdk
+        environment:
+          DATABASE_HOST: 127.0.0.1
+          DATABASE_NAME: backbeard-db
+      - image: postgres:9.5
+        environment:
+          POSTGRES_USER: backbeard-user
+          POSTGRES_PASSWORD: 
+          POSTGRES_DB: backbeard-db
+          POSTGRES_INITDB_ARGS: "-E UTF8 --no-locale"
+
+    working_directory: ~/repo
+
+    environment:
+      JVM_OPTS: -Xmx3200m
+      TERM: dumb
+    
+    steps:
+      - checkout
+
+      - run:
+          name: Archive source code
+          command: |
+            cd ../ && tar cfz backbeard.tar.gz repo --exclude .git 
+
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "build.sbt" }}
+          - v1-dependencies-
+
+      - run: sbt test dist
+
+      - run:
+          name: Install awscli
+          command: |
+            sudo apt install python-pip python-dev
+            sudo pip install awscli
+
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: v1-dependencies--{{ checksum "build.sbt" }}
+      - run:
+          name: Wait for Postgres DB
+          command: dockerize -wait tcp://127.0.0.1:5432 -timeout 1m
+
+      - run:
+          name: Copy File for S3
+          command: |
+            aws s3 cp ~/backbeard.tar.gz "s3://backbeard/${CIRCLE_BRANCH}/backbeard.tar.gz"
+            aws s3 cp target/universal/backbeard-staging.zip "s3://backbeard/${CIRCLE_BRANCH}/backbeard-staging.zip"
+
+  deploy:
+    working_directory: ~/repo
+    docker:
+      - image: circleci/python:3.6.1
+    steps:
+      - checkout
+      - run:
+          name: Install ansible
+          command: |
+            sudo pip install ansible
+      - run:
+          name: deploy master
+          command: cd ansible/ && ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i hosts deploy.yml --extra-vars "aws_access_key=${AWS_ACCESS_KEY_ID} aws_secret_key=${AWS_SECRET_ACCESS_KEY}"
+
+workflows:
+  version: 2
+  build-deploy:
+    jobs:
+      - build
+      - deploy:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
