@@ -1,0 +1,7 @@
+- name: Deploy to backbeard server
+  remote_user: ubuntu
+  become: yes
+  hosts: backbeard
+
+  roles:
+    - deploy

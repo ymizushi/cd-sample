@@ -1,0 +1,29 @@
+- name: install common apt packages
+  apt: pkg={{ item }} state=latest
+  with_items:
+  - build-essential
+  - git
+  - unzip
+  - python-pip
+  - supervisor
+
+- name: install common pip packages
+  pip:
+    name: boto
+
+- name: install common pip packages
+  pip:
+    name: boto3
+
+
+- name: add deploy group
+  group:
+    name: deploy
+    state: present
+
+- name: add deploy user
+  user:
+    name: deploy
+    shell: /bin/bash
+    groups: deploy
+    append: yes

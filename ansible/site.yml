@@ -1,0 +1,10 @@
+- name: Setup backbeard server
+  remote_user: ubuntu
+  become: yes
+  hosts: backbeard
+
+  roles:
+    - common
+    - geerlingguy.postgresql
+    - jebovic.java
+    - nginx

@@ -1,0 +1,9 @@
+- name: Install nginx
+  apt: name=nginx state=present
+
+- name: Install htpasswd command
+  apt: name=apache2-utils state=present
+
+- name: Copy nginx configuration for backbeard
+  template: src=default.conf dest=/etc/nginx/sites-available/default
+  notify: restart nginx

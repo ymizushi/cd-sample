@@ -1,0 +1,42 @@
+- name: copy supervisord conf
+  template:
+    src: templates/backbeard-supervisor.conf
+    dest: /etc/supervisor/conf.d/backbeard.conf
+    owner: ubuntu
+    group: ubuntu
+    mode: 0644
+
+- name: Download
+  s3:
+    bucket: backbeard
+    object: /master/backbeard.tar.gz
+    dest: /tmp/backbeard.tar.gz
+    mode: get
+    overwrite: always
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+
+- name: Download binary file
+  s3:
+    bucket: backbeard
+    object: /master/backbeard-staging.zip
+    dest: /tmp/backbeard-staging.zip
+    mode: get
+    overwrite: always
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+
+- name: chmod 644 to backbeard.tar.gz
+  file: path=/tmp/backbeard.tar.gz owner=ubuntu group=ubuntu mode=0644
+
+- name: chmod 644 to backbeard-staging.zip
+  file: path=/tmp/backbeard-staging.zip owner=ubuntu group=ubuntu mode=0644
+
+- name: Unarchive source file
+  unarchive: src=/tmp/backbeard.tar.gz dest=/tmp remote_src=yes
+
+- name: Unarchive binary file
+  unarchive: src=/tmp/backbeard-staging.zip dest=/tmp remote_src=yes
+
+- name: restart supervisord
+  service: name=supervisor state=restarted
